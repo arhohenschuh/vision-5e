@@ -9,7 +9,7 @@ export class Matcher {
                 .flatMap((m) => m.reduce((a, b) => a.flatMap((c) => b.map((d) => c + d)))),
         )).sort()]).sort((a, b) => a[0].compare(b[0])));
 
-        this.#pattern = new RegExp(`^${Object.entries(object).map(([key, matches]) => `(?<${key}>${matches.map(RegExp.escape).join("|")})`).join("|")}$`, "i");
+        this.#pattern = new RegExp(`^(?:${Object.entries(object).map(([key, matches]) => `(?<${key}>${matches.map(RegExp.escape).join("|")})`).join("|")})$`, "i");
 
         const matches = Object.values(object).flat();
 
@@ -42,7 +42,7 @@ export function fromFeet(range, units) {
         case "in": return range / 12;
         case "ft": return range;
         case "yd": return range * 3;
-        case "mi": return range * 1760;
+        case "mi": return range * 5280;
         case "mm": return range * 10 / 3000;
         case "cm": return range * 10 / 300;
         case "dm": return range * 10 / 30;
@@ -57,7 +57,7 @@ export function toFeet(range, units) {
         case "in": return range * 12;
         case "ft": return range;
         case "yd": return range / 3;
-        case "mi": return range / 1760;
+        case "mi": return range / 5280;
         case "mm": return range * 3000 / 10;
         case "cm": return range * 300 / 10;
         case "dm": return range * 30 / 10;

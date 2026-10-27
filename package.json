@@ -1,5 +1,6 @@
 {
     "name": "vision-5e",
+    "version": "3.2.4",
     "description": "Vision 5e (Foundry VTT Module)",
     "author": {
         "name": "dev7355608",
@@ -7,13 +8,13 @@
         "url": "https://github.com/dev7355608"
     },
     "license": "MIT",
-    "homepage": "https://github.com/dev7355608/vision-5e",
+    "homepage": "https://github.com/arhohenschuh/vision-5e",
     "bugs": {
-        "url": "https://github.com/dev7355608/vision-5e/issues",
-        "email": "dev7355608@gmail.com"
+        "url": "https://github.com/arhohenschuh/vision-5e/issues"
     },
     "private": true,
     "scripts": {
+        "test": "node --test",
         "build": "npm run clean && rollup -c",
         "clean": "rimraf module.zip script.js script.js.map",
         "lint": "eslint",

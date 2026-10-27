@@ -1,5 +1,5 @@
-[![Latest Version](https://img.shields.io/github/v/release/dev7355608/vision-5e?display_name=tag&sort=semver&label=Latest%20Version)](https://github.com/dev7355608/vision-5e/releases/latest)
-![Foundry Version](https://img.shields.io/endpoint?url=https://foundryshields.com/version?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdev7355608%2Fvision-5e%2Fmain%2Fmodule.json)
+[![Latest Version](https://img.shields.io/github/v/release/arhohenschuh/vision-5e?display_name=tag&sort=semver&label=Latest%20Version)](https://github.com/arhohenschuh/vision-5e/releases/latest)
+![Foundry Version](https://img.shields.io/endpoint?url=https://foundryshields.com/version?url=https%3A%2F%2Fgithub.com%2Farhohenschuh%2Fvision-5e%2Freleases%2Flatest%2Fdownload%2Fmodule.json)
 [![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fvision-5e&colorB=blueviolet)](https://forge-vtt.com/bazaar#package=vision-5e)
 [![License](https://img.shields.io/github/license/dev7355608/vision-5e?label=License)](LICENSE)
 
@@ -8,6 +8,29 @@
 Additional and improved Vision/Detection modes for D&D 5e including automatic vision management based on the actor's senses, feats, and active effects.
 
 The automation detects relevant feats and effects that affect the creatures senses and detection by their name (supported are English, German, French, Spanish, and Portuguese (Brazil)). No configuration is required unless you want to adjust the default hearing range formula (for example, turn hearing off entirely by default) or disable [Spectator Mode](#spectator-mode).
+
+### Fork release 3.2.4
+
+This fork retains the original work and MIT license from
+[dev7355608/vision-5e](https://github.com/dev7355608/vision-5e).
+
+- Prevent recursive synthetic-actor construction during status-driven vision updates,
+  including blindness and burrowing. Core hooks, filters and explicit deletion are preserved.
+- Coalesce actor-driven token resets and avoid unnecessary actor construction in GM vision checks.
+- Require complete supported feature/effect names instead of accidental partial matches.
+- Correct Ghostly Gaze/Ethereal ranges in non-foot scenes and use 5,280 feet per mile.
+- Add 81 standalone regression checks. Lint and build pass; actual browser acceptance
+  was performed on Foundry 14.369 with dnd5e 6.0.6. Foundry 13 has fixture coverage,
+  not a new integration certification.
+
+A paired isolated-client test reduced startup from 111.9 seconds to 49.3 seconds
+and eliminated recursive NPC preparation errors. Results depend on the world and machine.
+
+Install this fork using
+[its release manifest](https://github.com/arhohenschuh/vision-5e/releases/latest/download/module.json).
+On Forge, turn off **Install from the Bazaar if the package is found** when installing
+from the manifest, so the upstream Bazaar package does not replace the fork.
+Keep only one installation with module ID `vision-5e`.
 
 ---
 
@@ -229,6 +252,46 @@ _Note: Pre dnd5e 5.3.0 replace `.senses.ranges.` by `.senses.`._
 
 _Note: The automation is not case-sensitive._
 
+_Note: Names must match a supported alias in full. Additional prefixes or suffixes, such as `(inactive)`, do not activate that alias._
+
 _Note: You may use `'` or `’` for apostrophes._
 
 _Note: In French the colon (`:`) is preceded by a space, but it isn't required in order for the automation to detect the feat. For example, both `Manifestation : Regard fantomatique` and `Manifestation: Regard fantomatique` work._
+
+---
+
+### Development and regression checks
+
+Use Node.js 24 or newer for the standalone tests, which exercise the module's native
+`RegExp.escape` usage. Install the locked development dependencies and validate from
+the repository root:
+
+```shell
+npm ci --ignore-scripts
+npm test
+npm run lint
+npm run build
+```
+
+The Node tests use small Foundry lifecycle fixtures; they do not replace in-world
+validation. Before deploying a change, check initial scene loading, lazy unlinked
+actors created after loading, linked actors, GM/player spectator permissions, and
+live status/sense changes. Verify both Foundry 13 and 14 behavior when claiming
+support for both.
+
+Status-driven source initialization uses Foundry's deferred perception flags so it
+cannot re-enter an actor which is still being constructed. Core status hooks and
+filters still run, and explicit source deletion remains synchronous. Actor-driven
+token resets are coalesced at the end of the current preparation stack before the
+next perception frame. Do not replace these safeguards with a `canvas.ready` check
+alone: unlinked actors can also be materialized after the initial scene load.
+
+Range tests preserve D&D's simplified conversion of 5 feet to 1.5 metres. Ghostly
+Gaze and Ethereal range limits use scene units; mile conversions use 5,280 feet.
+The existing internal `fromFeet` and `toFeet` names have reversed historical
+meanings. Use `convertUnits(range, fromUnits, toUnits)` at new call sites instead
+of interpreting those names literally.
+
+`npm run build` creates ignored local test artifacts (`script.js`, its source map,
+and `module.zip`). It does not publish or install them. Published fork releases
+include both `module.json` and `module.zip` as versioned release assets.

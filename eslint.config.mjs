@@ -59,4 +59,12 @@ export default [
             "@stylistic/no-multiple-empty-lines": ["error", { max: 1, maxBOF: 0, maxEOF: 0 }],
         },
     },
+    {
+        files: ["tests/**/*.mjs"],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+    },
 ];

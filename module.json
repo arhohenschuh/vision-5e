@@ -6,9 +6,13 @@
     {
       "name": "dev7355608",
       "email": "dev7355608@gmail.com"
+    },
+    {
+      "name": "arhohenschuh",
+      "url": "https://github.com/arhohenschuh/vision-5e"
     }
   ],
-  "version": "3.2.3",
+  "version": "3.2.4",
   "compatibility": {
     "minimum": "13",
     "verified": "14"
@@ -63,16 +67,16 @@
         "type": "system",
         "compatibility": {
           "minimum": "5.0.0",
-          "verified": "5.3.3"
+          "verified": "6.0.6"
         }
       }
     ]
   },
-  "url": "https://github.com/dev7355608/vision-5e",
-  "manifest": "https://github.com/dev7355608/vision-5e/releases/latest/download/module.json",
-  "download": "https://github.com/dev7355608/vision-5e/releases/download/v3.2.3/module.zip",
-  "changelog": "https://github.com/dev7355608/vision-5e/releases/tag/v3.2.3",
-  "bugs": "https://github.com/dev7355608/vision-5e/issues",
-  "readme": "https://raw.githubusercontent.com/dev7355608/vision-5e/main/README.md",
-  "license": "https://raw.githubusercontent.com/dev7355608/vision-5e/main/LICENSE"
+  "url": "https://github.com/arhohenschuh/vision-5e",
+  "manifest": "https://github.com/arhohenschuh/vision-5e/releases/latest/download/module.json",
+  "download": "https://github.com/arhohenschuh/vision-5e/releases/download/v3.2.4/module.zip",
+  "changelog": "https://github.com/arhohenschuh/vision-5e/releases/tag/v3.2.4",
+  "bugs": "https://github.com/arhohenschuh/vision-5e/issues",
+  "readme": "https://raw.githubusercontent.com/arhohenschuh/vision-5e/v3.2.4/README.md",
+  "license": "https://raw.githubusercontent.com/arhohenschuh/vision-5e/v3.2.4/LICENSE"
 }

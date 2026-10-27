@@ -1,4 +1,4 @@
-import { convertUnits, fromFeet } from "./utils.mjs";
+import { convertUnits } from "./utils.mjs";
 
 export default (TokenDocument) => class extends TokenDocument {
     /** @override */
@@ -38,7 +38,7 @@ export default (TokenDocument) => class extends TokenDocument {
         }
 
         if (this.hasStatusEffect(CONFIG.specialStatusEffects.ETHEREAL)) {
-            const maxRange = fromFeet(60, sceneUnits);
+            const maxRange = convertUnits(60, "ft", sceneUnits);
 
             for (const [_id, mode] of this._getDetectionModes()) {
                 mode.range = Math.min(mode.range, maxRange);

@@ -1,6 +1,6 @@
 import { DETECTION_LEVELS } from "./const.mjs";
 import { spectatorMode } from "./settings.mjs";
-import { fromFeet } from "./utils.mjs";
+import { convertUnits } from "./utils.mjs";
 
 export default (Token) => class extends Token {
     /**
@@ -43,6 +43,31 @@ export default (Token) => class extends Token {
      */
     #impreciseChildren;
 
+    /** @type {boolean} */
+    #applyingStatusEffect = false;
+
+    /** @override */
+    initializeSources(options) {
+        if (this.#applyingStatusEffect && !options?.deleted) {
+            canvas.perception.update({ initializeLighting: true, initializeVision: true });
+
+            return;
+        }
+
+        return super.initializeSources(options);
+    }
+
+    /** @override */
+    initializeVisionSource(options) {
+        if (this.#applyingStatusEffect && !options?.deleted) {
+            canvas.perception.update({ initializeVision: true });
+
+            return;
+        }
+
+        return super.initializeVisionSource(options);
+    }
+
     /** @override */
     _isLightSource() {
         // Don't emit light in the ethereal plane
@@ -72,19 +97,20 @@ export default (Token) => class extends Token {
             return true;
         }
 
-        // At this point only tokens with an actor could be a source of vision
-        if (!this.actor) {
+        if (isGM && (!spectatorMode || this.document.hidden || this.layer.controlled.length === 0)) {
+            return false;
+        }
+
+        // The actor getter may construct a synthetic actor, so resolve it only after the cheap rejections.
+        const actor = this.actor;
+
+        if (!actor) {
             return false;
         }
 
         if (!spectatorMode) {
-            // Otherwise, vision is ignored for GM users
-            if (isGM) {
-                return false;
-            }
-
             // If the user doesn't have observer permissions, ...
-            if (!this.actor.testUserPermission(game.user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER)) {
+            if (!actor.testUserPermission(game.user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER)) {
                 // ... this token is not source of vision
                 return false;
             }
@@ -97,10 +123,6 @@ export default (Token) => class extends Token {
 
             // The user has observer permissions and controls no token that has sight
             return true;
-        }
-
-        if (isGM && (this.document.hidden || this.layer.controlled.length === 0)) {
-            return false;
         }
 
         // A token that is defeated, petrified, or unconscious cannot perceive anything
@@ -132,21 +154,21 @@ export default (Token) => class extends Token {
             }
 
             // If the user has observer permissions, ...
-            if (this.actor.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER)) {
+            if (actor.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER)) {
                 // ... this token is a source of vision
                 return true;
             }
 
             // If the user is the owner or observer of a token that can perceive something but isn't controlling it, ...
             if (this.layer.placeables.some((token) => !token.controlled && canPerceive(token)
-                && token.actor?.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER))) {
+                && (token === this ? actor : token.actor)?.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER))) {
                 // ... this token is not a source of vision
                 continue;
             }
 
             // If the user does not have a token that can perceive something,
             // this token is a source of vision if the user has limited permissions and the actor has a player owner
-            if (this.actor.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED) && this.actor.hasPlayerOwner) {
+            if (actor.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED) && actor.hasPlayerOwner) {
                 return true;
             }
         }
@@ -215,7 +237,7 @@ export default (Token) => class extends Token {
 
         // Handle Ghostly Gaze
         if (this.document.hasStatusEffect(CONFIG.specialStatusEffects.GHOSTLY_GAZE)) {
-            data.unconstrainedRadius = this.getLightRadius(fromFeet(30, canvas.grid.units));
+            data.unconstrainedRadius = this.getLightRadius(convertUnits(30, "ft", canvas.grid.units));
         } else {
             data.unconstrainedRadius = 0;
         }
@@ -238,48 +260,46 @@ export default (Token) => class extends Token {
 
     /** @override */
     _onApplyStatusEffect(statusId, active) {
-        if (statusId === CONFIG.specialStatusEffects.BLEEDING
-            || statusId === CONFIG.specialStatusEffects.DISEASED
-            || statusId === CONFIG.specialStatusEffects.INAUDIBLE
-            || statusId === CONFIG.specialStatusEffects.MAGICAL
-            || statusId === CONFIG.specialStatusEffects.MATERIAL
-            || statusId === CONFIG.specialStatusEffects.MIND_BLANK
-            || statusId === CONFIG.specialStatusEffects.NONDETECTION
-            || statusId === CONFIG.specialStatusEffects.OBJECT
-            || statusId === CONFIG.specialStatusEffects.POISONED
-            || statusId === CONFIG.specialStatusEffects.POISONOUS
-            || statusId === CONFIG.specialStatusEffects.REVENANCE
-            || statusId === CONFIG.specialStatusEffects.SHAPECHANGER
-            || statusId === CONFIG.specialStatusEffects.THINKING
-            || statusId === CONFIG.specialStatusEffects.UMBRAL_SIGHT) {
-            canvas.perception.update({ refreshVision: true });
-        } else if (statusId === CONFIG.specialStatusEffects.DEFEATED
-            || statusId === CONFIG.specialStatusEffects.PETRIFIED
-            || statusId === CONFIG.specialStatusEffects.UNCONSCIOUS) {
-            if (!this.document.hidden && this.hasSight && (this.controlled
-                || (!game.user.isGM && this.actor?.testUserPermission(game.user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER)
-                    || game.user.isGM && this.layer.controlled.length !== 0))) {
-                for (const token of this.layer.placeables) {
-                    if (token !== this && !token.vision === token._isVisionSource()) {
-                        token.initializeVisionSource();
-                    }
-                }
+        const wasApplyingStatusEffect = this.#applyingStatusEffect;
+
+        // Core also initializes sources for blindness/burrowing. Keep its hooks and filters synchronous,
+        // but let perception initialize sources next frame, after any synthetic actor has been assigned.
+        this.#applyingStatusEffect = true;
+
+        try {
+            if (statusId === CONFIG.specialStatusEffects.BLEEDING
+                || statusId === CONFIG.specialStatusEffects.DISEASED
+                || statusId === CONFIG.specialStatusEffects.INAUDIBLE
+                || statusId === CONFIG.specialStatusEffects.MAGICAL
+                || statusId === CONFIG.specialStatusEffects.MATERIAL
+                || statusId === CONFIG.specialStatusEffects.MIND_BLANK
+                || statusId === CONFIG.specialStatusEffects.NONDETECTION
+                || statusId === CONFIG.specialStatusEffects.OBJECT
+                || statusId === CONFIG.specialStatusEffects.POISONED
+                || statusId === CONFIG.specialStatusEffects.POISONOUS
+                || statusId === CONFIG.specialStatusEffects.REVENANCE
+                || statusId === CONFIG.specialStatusEffects.SHAPECHANGER
+                || statusId === CONFIG.specialStatusEffects.THINKING
+                || statusId === CONFIG.specialStatusEffects.UMBRAL_SIGHT) {
+                canvas.perception.update({ refreshVision: true });
+            } else if (statusId === CONFIG.specialStatusEffects.DEFEATED
+                || statusId === CONFIG.specialStatusEffects.PETRIFIED
+                || statusId === CONFIG.specialStatusEffects.UNCONSCIOUS
+                || statusId === CONFIG.specialStatusEffects.BLIND_SENSES
+                || statusId === CONFIG.specialStatusEffects.DEAFENED
+                || statusId === CONFIG.specialStatusEffects.DEVILS_SIGHT
+                || statusId === CONFIG.specialStatusEffects.ECHOLOCATION
+                || statusId === CONFIG.specialStatusEffects.GHOSTLY_GAZE
+                || statusId === CONFIG.specialStatusEffects.SLEEPING) {
+                this.initializeVisionSource();
+            } else if (statusId === CONFIG.specialStatusEffects.ETHEREAL) {
+                this.initializeSources();
             }
 
-            this.initializeVisionSource();
-        } else if (statusId === CONFIG.specialStatusEffects.BLIND_SENSES
-            || statusId === CONFIG.specialStatusEffects.DEAFENED
-            || statusId === CONFIG.specialStatusEffects.DEVILS_SIGHT
-            || statusId === CONFIG.specialStatusEffects.ECHOLOCATION
-            || statusId === CONFIG.specialStatusEffects.GHOSTLY_GAZE
-            || statusId === CONFIG.specialStatusEffects.SLEEPING) {
-            this.initializeVisionSource();
-        } else if (statusId === CONFIG.specialStatusEffects.ETHEREAL) {
-            this.initializeSources();
+            return super._onApplyStatusEffect(statusId, active);
+        } finally {
+            this.#applyingStatusEffect = wasApplyingStatusEffect;
         }
-
-        // Blinded, Burrowing, Hovering, Flying, and, Invisible are handled by core
-        super._onApplyStatusEffect(statusId, active);
     }
 
     /** @override */

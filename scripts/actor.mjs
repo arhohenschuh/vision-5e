@@ -30,11 +30,7 @@ export default (Actor) => class extends Actor {
                 continue;
             }
 
-            token.reset();
-
-            if (token.rendered && token.object.vision) {
-                token.object.initializeVisionSource();
-            }
+            scheduleTokenReset(token);
         }
     }
 
@@ -130,6 +126,34 @@ export default (Actor) => class extends Actor {
         }
     }
 };
+
+const pendingTokenResets = new WeakSet();
+
+/**
+ * Token preparation can read its actor before ActorDelta has finished assigning it.
+ * Defer document resets to the end of the current preparation stack, before perception's next frame.
+ * @param {TokenDocument} token
+ */
+function scheduleTokenReset(token) {
+    if (pendingTokenResets.has(token)) {
+        return;
+    }
+
+    pendingTokenResets.add(token);
+    queueMicrotask(() => {
+        pendingTokenResets.delete(token);
+
+        if (!token.sight.enabled) {
+            return;
+        }
+
+        token.reset();
+
+        if (token.rendered && token.object.vision) {
+            canvas.perception.update({ initializeVision: true });
+        }
+    });
+}
 
 /**
  * @param {Actor} actor
